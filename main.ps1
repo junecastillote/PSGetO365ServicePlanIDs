@@ -1,68 +1,30 @@
-Function Get-ServicePlanIDTableFromGitHub {
+Function Get-O365ServicePlanIDTable {
     [CmdletBinding()]
-    param (
-        [parameter(Mandatory)]
-        [string]$Output,
 
-        [parameter()]
-        [string]$URL = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/master/articles/active-directory/users-groups-roles/licensing-service-plan-reference.md"
-    )
+    ## This is the licensing reference table document from GitHub
+    [string]$URL = 'https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/master/articles/active-directory/users-groups-roles/licensing-service-plan-reference.md'
 
-    try {
-        #(New-Object System.Net.WebClient).DownloadFile($URL, $Output)
-        Invoke-WebRequest -Uri $url -OutFile $Output -ErrorAction STOP
-        Write-Verbose "File downloaded to $Output"
-    }
-    catch {
-        Write-Output "An error has occured"
-        Write-Output $_.ErrorDetails.Message
-    }
-}
-
-Function Convert-ServicePlanIDTable {
-    [CmdletBinding()]
-    param (
-        [parameter(Mandatory)]
-        [string]$InputFileMD
-    )
-
-    try {
-        $xtable = get-content $InputFileMD -ErrorAction STOP
-    }
-    catch {
-        Write-Output "An error occured"
-        Write-Output $_.ErrorDetails.Message
-        return $null
-    }
-
-    ## Find the start of the table and mark it with 'StartHere'
-    $i = 0
-    foreach ($line in $xtable) {
-        if ($line -eq '| Product name | String ID | GUID | Service plans included | Service plans included (friendly names) |') {
-            $startLine = $i
-            break
-        }
-        $i++
-    }
-
-    ## Find the end of the table and mark it with 'EndHere'
-    $i = 0
-    foreach ($line in $xtable) {
-        if ($line -eq '## Service plans that cannot be assigned at the same time') {
-            $endLine = ($i - 1)
-            break
-        }
-        $i++
-    }
-
+    ## Download the string value of the MD file
+    [System.Collections.ArrayList]$raw_Table = ((New-Object System.Net.WebClient).DownloadString($URL) -split "`n")
+    ## Determine the starting row index of the table
+    $startLine = $raw_Table.IndexOf('| Product name | String ID | GUID | Service plans included | Service plans included (friendly names) |')
+    ## Determine the ending index of the table
+    $endLine = ($raw_Table.IndexOf('## Service plans that cannot be assigned at the same time') - 1)
     ## Extract the string in between the lines $startLine and $endLine
     $result = @()
     for ($i = $startLine; $i -lt $endLine; $i++) {
-        if ($xtable[$i] -notlike "*---*") {
-            $result += ($xtable[$i].Substring(1,$xtable[$i].Length-1)) -replace "\s*\|\s*", "|" -replace "<br/>",";"
+        if ($raw_Table[$i] -notlike "*---*") {
+            $result += ($raw_Table[$i].Substring(1, $raw_Table[$i].Length - 1))
         }
     }
+    $result = $result `
+        -replace '\s*\|\s*', '|' `
+        -replace '\s*<br/>\s*', ';' `
+        -replace '\(\(', '(' `
+        -replace '\)\)', ')' `
+        -replace '\)\s*\(', ')('
 
-    $result = $result | ConvertFrom-Csv -Delimiter "|"
+    $result = (($result | ConvertFrom-Csv -Delimiter "|").'Service plans included (friendly names)') -split ";" | Sort-Object -Unique
+
     return $result
 }
