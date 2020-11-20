@@ -2,7 +2,7 @@ Function Get-O365ServicePlanIDTable {
     [CmdletBinding()]
 
     ## This is the licensing reference table document from GitHub
-    [string]$URL = 'https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/master/articles/active-directory/users-groups-roles/licensing-service-plan-reference.md'
+    [string]$URL = 'https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/master/articles/active-directory/enterprise-users/licensing-service-plan-reference.md'
 
     ## Download the string value of the MD file
     [System.Collections.ArrayList]$raw_Table = ((New-Object System.Net.WebClient).DownloadString($URL) -split "`n")
@@ -19,12 +19,14 @@ Function Get-O365ServicePlanIDTable {
     }
     $result = $result `
         -replace '\s*\|\s*', '|' `
+        -replace '\s*\(', ' (' `
         -replace '\s*<br/>\s*', ';' `
         -replace '\(\(', '(' `
         -replace '\)\)', ')' `
         -replace '\)\s*\(', ')('
 
-    $result = (($result | ConvertFrom-Csv -Delimiter "|").'Service plans included (friendly names)') -split ";" | Sort-Object -Unique
+    #$result = (($result | ConvertFrom-Csv -Delimiter "|").'Service plans included (friendly names)') -split ";" | Sort-Object -Unique
+    $result = (($result | ConvertFrom-Csv -Delimiter "|"))
 
     return $result
 }
